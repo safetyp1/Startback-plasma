@@ -18,13 +18,15 @@ A standalone fork of Windows7StartMenu4KDE, inspired by Windows 7 and StartAllBa
 
 ## Installation
 
-Requires Plasma 6 with Qt 6.8 or newer. Tested on Plasma 6.8.2 / Qt 6.12; older combinations still need testing. Run from the repository root:
+Requires Plasma 6.8 or newer with Qt 6.8 or newer. Tested on Plasma 6.8.2 / Qt 6.12. Run from the repository root:
 
 ```sh
 kpackagetool6 --type Plasma/Applet --install .
 ```
 
 Then add **StartBack Plasma** from Plasma's widget picker.
+
+The fork uses the independent ID `com.github.safetyp1.startbackplasma`. It installs alongside the original widget; existing panel instances and settings are not migrated automatically.
 
 ## FAQs
 

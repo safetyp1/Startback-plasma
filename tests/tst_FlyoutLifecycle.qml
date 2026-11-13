@@ -152,6 +152,10 @@ Item {
     Component {
         id: menuConfigurationComponent
         QtObject {
+            property int menuBackgroundOpacity: 85
+            property int menuFrameOpacity: 0
+            property bool menuFrameUseThemeColor: false
+            property color menuFrameColor: "#507050"
             property bool showRecentsView: true
             property int numberRecentApps: 10
             property bool referenceSidebar: true
@@ -1676,17 +1680,73 @@ Item {
             tryCompare(menu, "visible", false);
         }
 
-        function test_powerOptionsUseOpaquePopup() {
+        function test_flyoutMatchesLauncherStyle_data() {
+            return [
+                { tag: "power", sidebar: false },
+                { tag: "sidebar", sidebar: true }
+            ];
+        }
+
+        function test_flyoutMatchesLauncherStyle(data) {
+            const control = createTemporaryObject(data.sidebar ? sidebarComponent : powerComponent, harness);
+            verify(control);
+            const menu = findChild(control, data.sidebar ? "sidebarFlyout" : "powerOptionsMenu");
+            verify(menu);
+            compare(menu.background.opacity, 0.95);
+            compare(menu.contentItem.opacity, 1);
+            compare(menu.font.family, Kirigami.Theme.defaultFont.family);
+            compare(menu.font.weight, Kirigami.Theme.defaultFont.weight);
+            compare(menu.font.italic, Kirigami.Theme.defaultFont.italic);
+            verify(menu.background.gradient !== undefined && menu.background.gradient !== null,
+                   "Flyouts must use the launcher gradient, not the Plasma tooltip surface");
+            compare(menu.background.gradient.stops[0].color, Qt.rgba(48 / 255, 49 / 255, 54 / 255, 1));
+            compare(menu.background.gradient.stops[1].color, Qt.rgba(32 / 255, 33 / 255, 38 / 255, 1));
+            compare(menu.itemAt(0).font.family, Kirigami.Theme.defaultFont.family);
+            const configuration = createTemporaryObject(menuConfigurationComponent, harness);
+            verify(configuration);
+            menu.configuration = configuration;
+            for (const opacity of [0, 50, 80, 85, 90, 100]) {
+                configuration.menuBackgroundOpacity = opacity;
+                compare(menu.background.opacity, Math.min(100, opacity + 10) / 100);
+                compare(menu.contentItem.opacity, 1);
+            }
+            const tint = findChild(menu.background, "flyoutTint");
+            verify(tint);
+            menu.configuration = { menuFrameOpacity: 40, menuFrameUseThemeColor: false, menuFrameColor: "#507050" };
+            compare(tint.opacity, 0.4);
+            compare(tint.color, Qt.rgba(80 / 255, 112 / 255, 80 / 255, 1));
+            menu.configuration = { menuFrameOpacity: 60, menuFrameUseThemeColor: true };
+            compare(tint.opacity, 0.6);
+            compare(tint.color, Qt.rgba(37 / 255, 38 / 255, 43 / 255, 1));
+        }
+
+        function test_powerOptionsUseTranslucentPopup_data() {
+            return [
+                { tag: "no-tint", tintOpacity: 0 },
+                { tag: "partial-tint", tintOpacity: 40 },
+                { tag: "full-tint", tintOpacity: 100 }
+            ];
+        }
+
+        function test_powerOptionsUseTranslucentPopup(data) {
             const power = createTemporaryObject(powerComponent, harness);
             verify(power);
-            power.openMenu();
             const menu = findChild(power, "powerOptionsMenu");
             verify(menu);
+            const configuration = createTemporaryObject(menuConfigurationComponent, harness, { menuFrameOpacity: data.tintOpacity });
+            verify(configuration);
+            menu.configuration = configuration;
+            power.openMenu();
             tryCompare(menu, "opened", true);
             compare(menu.count, power.actions.length);
             verify(menu.contentItem.Window.window !== power.Window.window);
-            const image = grabImage(menu.background);
-            compare(image.pixel(Math.floor(image.width / 2), Math.floor(image.height / 2)).a, 1);
+            compare(menu.contentItem.opacity, 1);
+            compare(menu.itemAt(0).opacity, 1);
+            for (const opacity of [0, 50, 80, 85, 90, 100]) {
+                configuration.menuBackgroundOpacity = opacity;
+                const image = grabImage(menu.background.parent);
+                fuzzyCompare(image.pixel(1, 1).a, Math.min(100, opacity + 10) / 100, 0.01);
+            }
             power.closeMenu();
             verify(!power.menuOpen);
         }

@@ -5,9 +5,10 @@
 # Feature discussion: https://phabricator.kde.org/D5209
 # Eg: contents/locale/fr_CA/LC_MESSAGES/plasma_applet_org.kde.plasma.eventcalendar.mo
 
-DIR=`cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd`
-plasmoidName=`kreadconfig5 --file="$DIR/../metadata.desktop" --group="Desktop Entry" --key="X-KDE-PluginInfo-Name"`
-website=`kreadconfig5 --file="$DIR/../metadata.desktop" --group="Desktop Entry" --key="X-KDE-PluginInfo-Website"`
+DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+plasmoidName=$(jq -er '.KPlugin.Id' "$DIR/../metadata.json") || exit 1
+website=$(jq -er '.KPlugin.BugReportUrl' "$DIR/../metadata.json") || exit 1
+cd "$DIR" || exit 1
 bugAddress="$website"
 packageRoot=".." # Root of translatable sources
 projectName="plasma_applet_${plasmoidName}" # project name
@@ -43,11 +44,4 @@ done
 
 echo "[build] Done building messages"
 
-if [ "$1" = "--restartplasma" ]; then
-	echo "[build] Restarting plasmashell"
-	killall plasmashell
-	kstart5 plasmashell
-	echo "[build] Done restarting plasmashell"
-else
-	echo "[build] (re)install the plasmoid and restart plasmashell to test."
-fi
+echo "[build] Reinstall or upgrade the widget, then reload Plasma to test."
