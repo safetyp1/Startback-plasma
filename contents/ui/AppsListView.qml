@@ -34,11 +34,13 @@ FocusScope {
     // Cursor is either a top level row or one child of an expanded row.
     property Item currentRow: null
     property int childCursor: -1
+    property bool keyboardNavigation: true
 
     // Name of the category currently opened, empty when the tree is collapsed.
     property string expandedLabel: ""
 
     function hoverIndex(item) {
+        keyboardNavigation = false;
         if (item.isChild) {
             currentRow = item.parentRow;
             childCursor = item.itemIndex;
@@ -91,6 +93,7 @@ FocusScope {
     }
 
     function incrementCurrentIndex() {
+        keyboardNavigation = true;
         const layout = listView.itemAtIndex(listView.currentIndex);
         const row = layout ? layout.rowItem : null;
         if (row && row.expanded) {
@@ -111,6 +114,7 @@ FocusScope {
     }
 
     function decrementCurrentIndex() {
+        keyboardNavigation = true;
         const layout = listView.itemAtIndex(listView.currentIndex);
         const row = layout ? layout.rowItem : null;
         if (row && row.expanded && childCursor > -1) {
@@ -129,6 +133,7 @@ FocusScope {
     }
 
     onActiveFocusChanged: {
+        if (activeFocus) keyboardNavigation = true;
         if (activeFocus && listView.currentIndex === -1 && listView.count > 0) {
             listView.currentIndex = 0;
         } else if (!activeFocus) {
@@ -228,9 +233,10 @@ FocusScope {
                 }
 
                 Column {
+                    id: childColumn
                     Layout.fillWidth: true
                     Layout.preferredHeight: rowItem.expanded ? implicitHeight : 0
-                    visible: rowItem.expanded
+                    visible: rowItem.expanded || Layout.preferredHeight > 0
                     clip: true
 
                     Behavior on Layout.preferredHeight {
@@ -239,7 +245,7 @@ FocusScope {
 
                     Repeater {
                         id: childRepeater
-                        model: rowItem.expanded ? rowItem.childModel : null
+                        model: rowItem.expanded || childColumn.Layout.preferredHeight > 0 ? rowItem.childModel : null
 
                         delegate: AppsListItem {
                             required property var model

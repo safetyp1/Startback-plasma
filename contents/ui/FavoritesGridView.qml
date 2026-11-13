@@ -31,6 +31,15 @@ FocusScope {
     property bool dragEnabled: true
     property bool dropEnabled: false
     property bool showLabels: true
+    property var dropFavoritesModel: null
+
+    function addDroppedFavorite(source, index) {
+        if (!dropEnabled || !dropFavoritesModel || !source) return false;
+        const favoriteId = String(source.launcherUrl || source.favoriteId || source.url || "");
+        if (!favoriteId || !favoriteId.endsWith(".desktop") || dropFavoritesModel.isFavorite(favoriteId)) return false;
+        dropFavoritesModel.addFavorite(favoriteId, Math.max(0, Math.min(index, dropFavoritesModel.count)));
+        return true;
+    }
 
     property alias currentIndex: gridView.currentIndex
     property alias currentItem: gridView.currentItem
@@ -120,8 +129,10 @@ FocusScope {
 
     DropArea {
         id: dropArea
+        objectName: "favoritesDropArea"
 
         anchors.fill: parent
+        onEntered: event => { event.accepted = itemGrid.dropEnabled; }
 
         onPositionChanged: event => {
                                if (!itemGrid.dropEnabled || gridView.animating || !kicker.dragSource) {
@@ -131,6 +142,11 @@ FocusScope {
                                var x = Math.max(0, event.x - (width % itemGrid.cellWidth));
                                var cPos = mapToItem(gridView.contentItem, x, event.y);
                                var item = gridView.itemAt(cPos.x, cPos.y);
+
+                               if (itemGrid.dropFavoritesModel) {
+                                   gridView.currentIndex = item ? item.itemIndex : -1;
+                                   return;
+                               }
 
                                if (item) {
                                    if (kicker.dragSource.parent === gridView.contentItem) {
@@ -164,13 +180,26 @@ FocusScope {
                            }
 
         onExited: {
+            if (itemGrid.dropFavoritesModel) gridView.currentIndex = -1;
             if ("dropPlaceholderIndex" in itemGrid.model) {
                 itemGrid.model.dropPlaceholderIndex = -1;
                 gridView.currentIndex = -1;
             }
         }
 
-        onDropped: {
+        onDropped: event => {
+            if (!itemGrid.dropEnabled) {
+                event.accepted = false;
+                return;
+            }
+            if (itemGrid.dropFavoritesModel) {
+                const position = mapToItem(gridView.contentItem, event.x, event.y);
+                const target = gridView.itemAt(position.x, position.y);
+                const index = target ? target.itemIndex : gridView.count;
+                if (itemGrid.addDroppedFavorite(kicker.dragSource, index)) event.acceptProposedAction();
+                gridView.currentIndex = -1;
+                return;
+            }
             if (kicker.dragSource && kicker.dragSource.parent !== gridView.contentItem && kicker.dragSource.GridView.view.model.favoritesModel === itemGrid.model) {
                 itemGrid.model.addFavorite(kicker.dragSource.favoriteId, itemGrid.model.dropPlaceholderIndex);
                 gridView.currentIndex = -1;
@@ -317,11 +346,12 @@ FocusScope {
 
                         Kirigami.Icon {
                             id: iconItem
+                            objectName: "applicationIcon"
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
-                            anchors.leftMargin: 15
+                            anchors.leftMargin: Kirigami.Units.smallSpacing * 2
 
-                            width: 32
+                            width: gridView.iconSize
                             height: width
                             animated: false
                             source: model.decoration
@@ -329,23 +359,23 @@ FocusScope {
 
                         PlasmaComponents.Label {
                             id: labelItem
-                            height: 48
+                            height: parent.height
                             visible: delegateItem.showLabel
 
                             anchors {
-                                left: parent.left
-                                leftMargin: iconItem.width * 1.5 + iconItem.anchors.leftMargin
+                                left: iconItem.right
+                                leftMargin: Kirigami.Units.smallSpacing * 2
                                 right: parent.right
                                 rightMargin: 5
                             }
 
                             verticalAlignment: Text.AlignVCenter
                             maximumLineCount: 1
-                            elide: Text.ElideMiddle
-                            wrapMode: Text.Wrap
+                            elide: Text.ElideRight
+                            wrapMode: Text.NoWrap
 
                             color: Kirigami.Theme.textColor
-                            font.pointSize: Kirigami.Theme.defaultFont.pointSize * 0.9
+                            font.pointSize: Kirigami.Theme.defaultFont.pointSize
                             text: ("name" in model ? model.name : model.display)
                             textFormat: Text.PlainText
                         }
@@ -363,12 +393,12 @@ FocusScope {
                             }
                         }
 
-                        Kirigami.Icon {
+                        ReferenceIcon {
                             id: arrowIcon
                             anchors.centerIn: parent
                             width: 16
                             height: 16
-                            source: "arrow-right"
+                            iconName: "go-next"
                             color: Kirigami.Theme.textColor
                             opacity: submenuMouseArea.containsMouse ? 1.0 : 0.7
                         }
@@ -629,10 +659,10 @@ FocusScope {
                                    if (gridView.currentIndex !== -1) {
                                        if (itemGrid.dragEnabled && pressX !== -1 && dragHelper.isDrag(pressX, pressY, mouse.x, mouse.y)) {
                                            if ("pluginName" in item.m) {
-                                               dragHelper.startDrag(kicker, item.url, item.icon,
+                                               dragHelper.startDrag(kicker, item.launcherUrl || item.url, item.icon,
                                                                     "text/x-plasmoidservicename", item.m.pluginName);
                                            } else {
-                                               dragHelper.startDrag(kicker, item.url, item.icon);
+                                               dragHelper.startDrag(kicker, item.launcherUrl || item.url, item.icon);
                                            }
                                            kicker.dragSource = item;
                                            pressX = -1;

@@ -22,6 +22,7 @@ Item {
     property int cellHeight: 48
     property int iconSize: 32
     property var executable
+    property var configuration: Plasmoid.configuration
 
     property alias searchField: searchField
     property alias favoritesComponent: favoritesContainer
@@ -30,6 +31,23 @@ Item {
     property alias appsView: appsView
     property alias runnerGrid: runnerGrid
     property alias sidebar: sidebar
+
+    readonly property bool recentAppsEnabled: configuration.showRecentsView && configuration.numberRecentApps > 0
+    readonly property real applicationListsHeight: Math.max(cellHeight, favoritesGrid.contentHeight)
+        + (recentAppsEnabled ? recentsGrid.contentHeight : 0)
+        + (favoritesGrid.count > 0 && recentAppsEnabled && recentsGrid.count > 0 ? Kirigami.Units.smallSpacing * 2 + 1 : 0)
+    readonly property real sidebarContentHeight: {
+        const groups = [sidePanelModels.firstCategory, sidePanelModels.secondCategory, sidePanelModels.thirdCategory]
+            .map(category => (category || []).filter(entry => contentRoot.entryVisible(entry)).length);
+        return (groups[0] + groups[1] + groups[2]) * 44
+            + (groups[0] > 0 && groups[1] > 0 ? separatorOne.implicitHeight : 0)
+            + (groups[1] > 0 && groups[2] > 0 ? separatorTwo.implicitHeight : 0)
+            + Kirigami.Units.smallSpacing * 2;
+    }
+    implicitHeight: Math.max(applicationListsHeight, sidebarContentHeight)
+
+    onSearchingChanged: if (searching) applicationRecents.close(false)
+    onShowAppsChanged: applicationRecents.close(false)
 
     signal searchTextChanged(string text)
     signal closeRequested()
@@ -50,20 +68,25 @@ Item {
         }
     }
 
-    // The original menu is 254 px of application list against 139 px of side panel.
-    readonly property real listColumnRatio: 254 / 393
-    readonly property real sideColumnRatio: 139 / 393
+    readonly property real listColumnRatio: 0.6
+    readonly property real sideColumnRatio: 1 - listColumnRatio
 
-    SidePanelModels { id: sidePanelModels }
+    SidePanelModels {
+        id: sidePanelModels
+        configuration: contentRoot.configuration
+    }
 
     // Entries the user kept enabled, keyed by the stable entry name.
     readonly property var sidePanelVisibility: {
-        const stored = Plasmoid.configuration.sidePanelVisibility;
+        const stored = configuration.sidePanelVisibility;
         if (!stored || stored === "") return {};
         try { return JSON.parse(stored); } catch (e) { return {}; }
     }
 
     function entryVisible(entry) {
+        if (configuration.referenceSidebar) {
+            return typeof sidePanelModels.referenceVisibility[entry.name] !== "undefined";
+        }
         return typeof contentRoot.sidePanelVisibility[entry.name] !== "undefined";
     }
 
@@ -110,30 +133,6 @@ Item {
             bottom: parent.bottom
         }
 
-        Rectangle {
-            id: listPanelTint
-            anchors { top: parent.top; left: parent.left; bottom: parent.bottom }
-            width: parent.width * contentRoot.listColumnRatio
-            z: -1
-            visible: Plasmoid.configuration.listPanelOpacity > 0
-            opacity: Plasmoid.configuration.listPanelOpacity / 100
-            color: Plasmoid.configuration.listPanelUseThemeColor
-                   ? Kirigami.Theme.backgroundColor
-                   : Plasmoid.configuration.listPanelColor
-        }
-
-        Rectangle {
-            id: sidePanelTint
-            anchors { top: parent.top; right: parent.right; bottom: parent.bottom }
-            width: parent.width * contentRoot.sideColumnRatio
-            z: -1
-            visible: Plasmoid.configuration.sidePanelOpacity > 0
-            opacity: Plasmoid.configuration.sidePanelOpacity / 100
-            color: Plasmoid.configuration.sidePanelUseThemeColor
-                   ? Kirigami.Theme.backgroundColor
-                   : Plasmoid.configuration.sidePanelColor
-        }
-
         // ---- Left column, favorites over recently used --------------------
 
         Item {
@@ -166,6 +165,7 @@ Item {
 
                 Parts.FavoritesRow {
                     id: favoritesGrid
+                    recentFilesPane: applicationRecents
                     clip: true
                     activeFocusOnTab: true
                     width: parent.width
@@ -174,7 +174,8 @@ Item {
                     height: {
                         const available = mainArea.height;
                         const reserved = (recentsGrid.visible && recentsGrid.count > 0) ? contentRoot.cellHeight : 0;
-                        return Math.max(0, Math.min(contentHeight, available - reserved));
+                        const rows = Math.floor((available - reserved - columnSeparator.height) / contentRoot.cellHeight);
+                        return Math.max(0, Math.min(Math.max(contentHeight, contentRoot.cellHeight), rows * contentRoot.cellHeight));
                     }
                     dragEnabled: true
                     dropEnabled: true
@@ -197,26 +198,35 @@ Item {
                 Rectangle {
                     id: columnSeparator
                     width: parent.width * 0.9
-                    height: visible ? 2 : 0
-                    color: Kirigami.Theme.textColor
-                    opacity: 0.3
+                    height: visible ? Kirigami.Units.smallSpacing * 2 + 1 : 0
+                    color: "transparent"
                     anchors.horizontalCenter: parent.horizontalCenter
                     visible: favoritesGrid.count > 0 && recentsGrid.visible && recentsGrid.count > 0
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
+                        height: 1
+                        color: Kirigami.Theme.textColor
+                        opacity: 0.3
+                    }
                 }
 
                 Parts.RecentsRow {
                     id: recentsGrid
+                    recentFilesPane: applicationRecents
                     clip: true
                     activeFocusOnTab: true
                     width: parent.width
                     // Snapped to whole rows; a partial row would just be clipped away.
+                    maximumApps: contentRoot.configuration.numberRecentApps
                     height: {
                         if (!visible) return 0;
                         const rest = mainArea.height - favoritesGrid.height - columnSeparator.height;
                         const rows = Math.floor(rest / contentRoot.cellHeight);
                         return Math.max(0, Math.min(contentHeight, rows * contentRoot.cellHeight));
                     }
-                    visible: Plasmoid.configuration.showRecentsView && Plasmoid.configuration.numberRecentApps > 0
+                    visible: contentRoot.recentAppsEnabled
                     cellWidth: width
                     cellHeight: contentRoot.cellHeight
                     iconSize: contentRoot.iconSize
@@ -276,9 +286,10 @@ Item {
                 anchors.fill: parent
                 cellWidth: parent.width
                 cellHeight: contentRoot.cellHeight
+                iconSize: contentRoot.iconSize
                 enabled: parent.visible
                 z: enabled ? 5 : -1
-                grabFocus: true
+                grabFocus: false
             }
         }
 
@@ -287,12 +298,13 @@ Item {
         FocusScope {
             id: sidebar
             objectName: "sidebar"
+            visible: !applicationRecents.opened
             activeFocusOnTab: true
             width: parent.width * contentRoot.sideColumnRatio
 
             anchors {
                 top: parent.top
-                topMargin: Kirigami.Units.gridUnit * 3
+                topMargin: 0
                 right: parent.right
                 rightMargin: Kirigami.Units.smallSpacing
                 bottom: parent.bottom
@@ -305,6 +317,10 @@ Item {
             onActiveFocusChanged: if (activeFocus && !sidebarColumn.hasFocusedEntry()) focusFirst()
 
             function focusFirst() {
+                if (applicationRecents.opened) {
+                    applicationRecents.focusFirst();
+                    return;
+                }
                 for (let i = 0; i < sidebarColumn.children.length; i++) {
                     const child = sidebarColumn.children[i];
                     if (child && child.visible && child.objectName === "SidePanelItem") {
@@ -332,7 +348,7 @@ Item {
                 id: sidebarScroll
                 anchors.fill: parent
                 anchors.margins: Kirigami.Units.smallSpacing
-                anchors.leftMargin: Kirigami.Units.smallSpacing * 2
+                anchors.leftMargin: Kirigami.Units.smallSpacing
 
                 PC3.ScrollBar.horizontal.policy: PC3.ScrollBar.AlwaysOff
                 PC3.ScrollBar.vertical.policy: PC3.ScrollBar.AsNeeded
@@ -350,6 +366,7 @@ Item {
                     }
 
                     component Entry: SidePanelItem {
+                        configuration: contentRoot.configuration
                         // The whole side panel is one tab stop; the arrows walk it.
                         activeFocusOnTab: false
                         width: sidebarColumn.width
@@ -424,6 +441,17 @@ Item {
             BlankAreaMenu {
                 filledHeight: sidebarScroll.y + sidebarColumn.height
             }
+        }
+
+        Parts.ApplicationRecentsPane {
+            id: applicationRecents
+            objectName: "applicationRecentsPane"
+            width: parent.width * contentRoot.sideColumnRatio
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.rightMargin: Kirigami.Units.smallSpacing
+            anchors.bottom: parent.bottom
+            onItemTriggered: contentRoot.closeRequested()
         }
     }
 

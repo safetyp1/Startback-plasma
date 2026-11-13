@@ -11,7 +11,7 @@ import ".."
 import "../functions" as Functions
 
 /**
- * Recent/Frequent apps grid component for the Windows 7 Start Menu
+ * Recent/Frequent apps grid component for StartBack Plasma
  * Displays most used applications with recent files support
  */
 FavoritesGridView {
@@ -19,8 +19,12 @@ FavoritesGridView {
 
     // Properties
     // cellWidth and cellHeight are aliases in FavoritesGridView - don't override them
-    property int iconSize: 32
     property var favoritesModel: null
+    property var usageModel: frequentAppsModel
+    property int maximumApps: Plasmoid.configuration ? Plasmoid.configuration.numberRecentApps : 10
+    onFavoritesModelChanged: Qt.callLater(buildSegregatedModel)
+    onUsageModelChanged: Qt.callLater(buildSegregatedModel)
+    onMaximumAppsChanged: Qt.callLater(buildSegregatedModel)
 
     // Signals (keyNavUp already defined in FavoritesGridView)
     signal menuClosed()
@@ -42,7 +46,7 @@ FavoritesGridView {
 
     Functions.ModelRoles {
         id: appsReader
-        sourceModel: frequentAppsModel
+        sourceModel: recentsGrid.usageModel
     }
 
     Functions.ModelRoles {
@@ -61,7 +65,7 @@ FavoritesGridView {
     // Grid configuration
     width: parent.width
     model: appsWithRecentFiles
-    actionModel: frequentAppsModel
+    actionModel: usageModel
 
     // Get favorites snapshot for change detection
     function getFavoritesSnapshot() {
@@ -165,8 +169,8 @@ FavoritesGridView {
         }
 
         // Collect valid apps excluding favorites
-        var totalApps = frequentAppsModel.count;
-        var targetAppsCount = Plasmoid.configuration.numberRecentApps;
+        var totalApps = usageModel ? usageModel.count : 0;
+        var targetAppsCount = maximumApps;
         var addedAppsCount = 0;
         var maxSearchApps = Math.min(totalApps, 50);
 
@@ -190,7 +194,8 @@ FavoritesGridView {
                 if (!launcherUrl) continue;
 
                 // Check if duplicate
-                var isDuplicate = false;
+                var isDuplicate = favoritesModel && typeof favoritesModel.isFavorite === "function"
+                                  && favoritesModel.isFavorite(launcherUrl);
                 if (favoriteIds.has(launcherUrl)) isDuplicate = true;
                 if (!isDuplicate && item.favoriteId && favoriteIds.has(item.favoriteId)) isDuplicate = true;
                 if (!isDuplicate && item.url && favoriteIds.has(item.url)) isDuplicate = true;
@@ -265,10 +270,10 @@ FavoritesGridView {
     // Execute app
     function executeItem(index) {
         try {
-            if (frequentAppsModel && typeof frequentAppsModel.trigger === "function") {
+            if (usageModel && typeof usageModel.trigger === "function") {
                 var item = appsWithRecentFiles.get(index);
                 if (item && typeof item.originalIndex !== "undefined") {
-                    frequentAppsModel.trigger(item.originalIndex, "", null);
+                    usageModel.trigger(item.originalIndex, "", null);
                     return true;
                 }
             }
@@ -280,25 +285,21 @@ FavoritesGridView {
 
 
     // Show recent files menu
-    readonly property bool jumpOpen: jumpList.opened
+    property var recentFilesPane: null
+    readonly property bool jumpOpen: recentFilesPane !== null && recentFilesPane.opened && recentFilesPane.owner === recentsGrid
     property int jumpIndex: -1
-
-    JumpListFlyout {
-        id: jumpList
-        onItemTriggered: recentsGrid.menuClosed()
-        onActionRequested: (actionId, actionArgument) => {
-            if (recentsGrid.jumpIndex >= 0) recentsGrid.runAction(recentsGrid.jumpIndex, actionId, actionArgument);
-        }
-    }
 
     function showRecentFilesMenu(index, visualParent) {
         const item = appsWithRecentFiles.get(index);
-        if (!item || !item.launcherUrl) return;
+        if (!item || !item.launcherUrl || !recentFilesPane) return;
+        if (jumpOpen && jumpIndex === index) {
+            recentFilesPane.focusFirst();
+            return;
+        }
         jumpIndex = index;
-        if (jumpList.opened) jumpList.close();
         const result = getRecentFilesHelper.getRecentFilesActions(item.launcherUrl, recentsGrid);
         if (!result || result.count <= 0) return;
-        jumpList.openFor(visualParent, result.actions, result.title);
+        recentFilesPane.openFor(visualParent, result.actions, result.title, recentsGrid, item.display, item.decoration);
     }
 
     // Handle item activation
@@ -346,9 +347,9 @@ FavoritesGridView {
     Keys.onPressed: (event) => {
 
         // Close submenu with Left or Escape
-        if ((event.key === Qt.Key_Left || event.key === Qt.Key_Escape) && jumpList.opened) {
+        if ((event.key === Qt.Key_Left || event.key === Qt.Key_Escape) && jumpOpen) {
             event.accepted = true;
-            jumpList.close();
+            recentFilesPane.close();
             recentsGrid.forceActiveFocus();
             return;
         }
@@ -374,13 +375,20 @@ FavoritesGridView {
     }
 
     Connections {
-        target: frequentAppsModel
+        target: recentsGrid.usageModel
         function onCountChanged() {
             Qt.callLater(buildSegregatedModel);
         }
         function onDataChanged() {
             Qt.callLater(buildSegregatedModel);
         }
+    }
+
+    Connections {
+        target: recentsGrid.favoritesModel
+        function onCountChanged() { Qt.callLater(buildSegregatedModel); }
+        function onDataChanged() { Qt.callLater(buildSegregatedModel); }
+        function onModelReset() { Qt.callLater(buildSegregatedModel); }
     }
 
     // Check for favorites changes periodically

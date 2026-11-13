@@ -39,9 +39,9 @@ Item {
 
     Rectangle {
         anchors.centerIn: parent
-        width: parent.width * 0.85
+        width: Math.max(0, parent.width - Kirigami.Units.smallSpacing * 4)
         height: 1
         color: Kirigami.Theme.textColor
-        opacity: 0.25
+        opacity: 0.14
     }
 }

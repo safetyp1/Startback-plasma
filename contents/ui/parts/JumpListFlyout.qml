@@ -11,18 +11,18 @@ import org.kde.plasma.components as PlasmaComponents
  * A QQC2 menu rather than the QMenu wrapper, because only this one lets the
  * left arrow walk back out to the list instead of forcing Escape.
  */
-PlasmaComponents.Menu {
+HoverDismissMenu {
     id: flyout
 
     property var entries: []
-    property Item anchorItem: null
+    anchorHovered: anchorItem !== null && "containsMouse" in anchorItem && anchorItem.containsMouse
 
     signal itemTriggered()
     // Entries taken from a Kicker actionList carry no closure, only an id to dispatch.
     signal actionRequested(string actionId, var actionArgument)
 
     function openFor(item, actionList, title) {
-        if (!actionList || actionList.length === 0) return false;
+        if (!kicker.expanded || !item || !item.visible || !actionList || actionList.length === 0) return false;
         const list = [];
         if (title && title !== "") list.push({ text: title, enabled: false });
         for (let i = 0; i < actionList.length; i++) list.push(actionList[i]);
@@ -32,7 +32,21 @@ PlasmaComponents.Menu {
         return true;
     }
 
-    onClosed: if (anchorItem) anchorItem.forceActiveFocus()
+    onClosed: if (anchorItem && anchorItem.visible && kicker.expanded) anchorItem.forceActiveFocus()
+
+    Connections {
+        target: kicker
+        function onExpandedChanged() {
+            if (!kicker.expanded) flyout.close();
+        }
+    }
+
+    Connections {
+        target: flyout.anchorItem
+        function onVisibleChanged() {
+            if (!flyout.anchorItem.visible) flyout.close();
+        }
+    }
 
     // Second route out, for when the menu is a window of its own and the
     // focused entry never sees the key. Only live while this flyout is open.

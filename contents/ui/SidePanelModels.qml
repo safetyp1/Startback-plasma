@@ -15,6 +15,7 @@ import org.kde.coreaddons 1.0 as KCoreAddons
 // preference rather than a hard dependency.
 Item {
     id: models
+    property var configuration: Plasmoid.configuration
 
     KCoreAddons.KUser { id: kuser }
 
@@ -27,13 +28,19 @@ Item {
 
     readonly property var recentDocuments: recentDocsModel
 
+    readonly property var referenceVisibility: ({
+        "Home directory": 1, "Documents": 1, "Pictures": 1, "Music": 1,
+        "Downloads": 1, "Recent Items": 1, "Computer": 1,
+        "Settings": 1, "Terminal": 1, "Run": 1
+    })
+
     property var firstCategory: [
         {
             name: "Home directory",
-            itemText: Plasmoid.configuration.useFullName ? kuser.fullName : kuser.loginName,
+            itemText: models.configuration && models.configuration.useFullName ? kuser.fullName : kuser.loginName,
             description: i18n("Open your personal folder."),
-            itemIcon: "user-home",
-            itemIconFallback: "user-home",
+            itemIcon: "user-identity",
+            itemIconFallback: "user-identity",
             executableString: StandardPaths.writableLocation(StandardPaths.HomeLocation),
             menuModel: null,
             executeProgram: false
@@ -42,8 +49,8 @@ Item {
             name: "Documents",
             itemText: i18n("Documents"),
             description: i18n("Access letters, reports, notes and other kinds of documents."),
-            itemIcon: "library-txt",
-            itemIconFallback: "folder-documents",
+            itemIcon: "document-new",
+            itemIconFallback: "document-new",
             executableString: StandardPaths.writableLocation(StandardPaths.DocumentsLocation),
             menuModel: null,
             executeProgram: false
@@ -52,8 +59,8 @@ Item {
             name: "Pictures",
             itemText: i18n("Pictures"),
             description: i18n("View and organize digital pictures."),
-            itemIcon: "library-images",
-            itemIconFallback: "folder-pictures",
+            itemIcon: "viewimage",
+            itemIconFallback: "viewimage",
             executableString: StandardPaths.writableLocation(StandardPaths.PicturesLocation),
             menuModel: null,
             executeProgram: false
@@ -62,8 +69,8 @@ Item {
             name: "Music",
             itemText: i18n("Music"),
             description: i18n("Play music and other audio files."),
-            itemIcon: "library-music",
-            itemIconFallback: "folder-music",
+            itemIcon: "audio-x-generic",
+            itemIconFallback: "audio-x-generic",
             executableString: StandardPaths.writableLocation(StandardPaths.MusicLocation),
             menuModel: null,
             executeProgram: false
@@ -82,8 +89,8 @@ Item {
             name: "Downloads",
             itemText: i18n("Downloads"),
             description: i18n("Find Internet downloads and links to favorite websites."),
-            itemIcon: "folder-download",
-            itemIconFallback: "folder-download",
+            itemIcon: "download",
+            itemIconFallback: "download",
             executableString: StandardPaths.writableLocation(StandardPaths.DownloadLocation),
             menuModel: null,
             executeProgram: false
@@ -113,7 +120,7 @@ Item {
         },
         {
             name: "Computer",
-            itemText: i18n("Computer"),
+            itemText: i18n("This PC"),
             description: i18n("See the disk drives and other hardware connected to your computer."),
             itemIcon: "computer",
             itemIconFallback: "computer",
@@ -135,12 +142,22 @@ Item {
 
     property var thirdCategory: [
         {
-            name: "Control Panel",
-            itemText: i18n("Control Panel"),
-            description: i18n("Change settings and customize the functionality of your computer."),
-            itemIcon: "preferences-system",
-            itemIconFallback: "preferences-system",
+            name: "Settings",
+            itemText: i18n("Settings"),
+            description: i18n("Open a settings page."),
+            itemIcon: "settings-configure",
+            itemIconFallback: "configure",
             executableString: "systemsettings",
+            menuModel: null,
+            executeProgram: true
+        },
+        {
+            name: "Terminal",
+            itemText: i18n("Terminal"),
+            description: i18n("Open a command terminal."),
+            itemIcon: "utilities-terminal",
+            itemIconFallback: "utilities-terminal",
+            executableString: "konsole",
             menuModel: null,
             executeProgram: true
         },
@@ -178,7 +195,7 @@ Item {
             name: "Run",
             itemText: i18n("Run…"),
             description: i18n("Open a program, folder, document or web site."),
-            itemIcon: "krunner",
+            itemIcon: "system-run",
             itemIconFallback: "system-run",
             executableString: "krunner --replace",
             menuModel: null,

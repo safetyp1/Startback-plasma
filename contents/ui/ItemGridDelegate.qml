@@ -62,15 +62,13 @@ Item {
 
     Kirigami.Icon {
         id: icon
-
-        y: item.showLabel ? (2 * highlightItemSvg.margins.top) : undefined
-
+        objectName: "searchResultIcon"
 
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
-        anchors.leftMargin: 15
+        anchors.leftMargin: Kirigami.Units.smallSpacing * 2
 
-        width: 32
+        width: item.GridView.view ? item.GridView.view.iconSize : Kirigami.Units.iconSizes.medium
         height: width
 
         animated: false
@@ -80,19 +78,22 @@ Item {
 
     PlasmaComponents3.Label {
         id: label
-        height: 48
+        objectName: "searchResultLabel"
+        height: parent.height
         visible: item.showLabel
 
         anchors {
-            left: parent.left
-            leftMargin: icon.width*1.5 +  icon.anchors.leftMargin
+            left: icon.right
+            leftMargin: Kirigami.Units.smallSpacing * 2
+            right: parent.right
+            rightMargin: Kirigami.Units.smallSpacing * 2
         }
 
         verticalAlignment: Text.AlignVCenter
 
         maximumLineCount: 1
-        elide: Text.ElideMiddle
-        wrapMode: Text.Wrap
+        elide: Text.ElideRight
+        wrapMode: Text.NoWrap
 
         color: Kirigami.Theme.textColor
 
@@ -107,8 +108,8 @@ Item {
         property string text: model.display
 
         anchors.fill: parent
-        active: root.visible && label.truncated
-        mainItem: toolTipDelegate
+        active: item.visible && label.truncated
+        mainItem: typeof toolTipDelegate !== "undefined" ? toolTipDelegate : null
 
         onContainsMouseChanged: item.GridView.view.itemContainsMouseChanged(containsMouse)
     }

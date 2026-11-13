@@ -1,58 +1,47 @@
-# Windows 7 Start Menu for KDE
+# StartBack Plasma
 
-A modern and faithful reimplementation of the classic **Windows 7 Start Menu** as a KDE Plasmoid.
+A standalone fork of Windows7StartMenu4KDE, inspired by Windows 7 and StartAllBack. Your apps, favorite shortcuts, and recent files, all in one familiar two-column menu. No previous installation is needed.
 
-This project is a **fork of the DeepinMenu ClassicKDE** ([https://store.kde.org/p/2180887](https://store.kde.org/p/2180887)), with significant modifications to reproduce the look and behavior of the Windows 7 Start Menu. It was developed to provide a more nostalgic and functional experience within the KDE Plasma desktop environment.
+## Demo
 
----
+![StartBack Plasma demo: applications, search, and recent-file navigation](docs/startback-plasma.gif)
 
-## 🧩 Features
+## Key Features
 
-This plasmoid replicates the key functionalities of the original Windows 7 Start Menu, including:
+- Classic two-column layout with automatic height and a panel-attached popup.
+- Persistent Favorites with drag-to-pin and a separate recent/frequent apps list.
+- Categorized All Programs and keyboard-friendly application and file search.
+- Inline recent documents and desktop actions for individual applications.
+- Customizable sidebar shortcuts, native flyouts, and power/session controls.
+- Adjustable opacity, colors, button textures, and optional Windows-style icons.
+- Native Plasma integration and nine bundled translations.
 
-* 🧭 **Two-panel layout**: Applications on the left, contextual actions (Documents, Computer, Control Panel) on the right.
-* 🕵️ **Search bar**: Quick and responsive search for applications, files, and system components.
-* ⭐ **Pinned applications**: Support for user-defined pinned applications for quick access.
-* 🕑 **Recently used apps**: Automatically lists frequently or recently opened applications.
-* 🗂️ **Categorized application list**: Well-structured categories (Accessories, System Tools, etc.).
-* 🔒 **User actions**: Shutdown, Restart, Hibernate, Log out options available in the bottom-right corner.
-* 👤 **User icon and name**: Visual identification of the current user with avatar and username.
-* 📌 **Jump lists**: Each application row opens a flyout with its recent documents and the tasks published by its `.desktop` file.
-* 🎨 **Configurable appearance**: Independent tint and opacity for the menu, the application list and the side panel, plus ClassicShell/OpenShell orb textures for the panel button.
-* ⌨️ **Keyboard navigation**: The whole menu, including the category tree and the jump list flyouts, is reachable without the mouse.
-* 🙈 **Hidden applications**: Entries can be hidden from the list and restored later from the settings dialog.
-* 🌍 **Translations**: Nine locales bundled — Spanish, French, Hebrew, Korean, Dutch, Polish, Brazilian Portuguese, Russian and Turkish. See [`translate/ReadMe.md`](translate/ReadMe.md) to add yours.
-* 🧩 **Integration with KDE Plasma**: Fully functional as a native KDE launcher, respecting theme and panel behavior.
+## Installation
 
----
+Requires Plasma 6 with Qt 6.8 or newer. Tested on Plasma 6.8.2 / Qt 6.12; older combinations still need testing. Run from the repository root:
 
-## 📋 To-do List
+```sh
+kpackagetool6 --type Plasma/Applet --install .
+```
 
-Planned enhancements and ongoing improvements:
+Then add **StartBack Plasma** from Plasma's widget picker.
 
-* [x] Refactor the codebase to improve readability and maintainability.
-* [x] Enhance keyboard navigation across menu sections and items.
-* [x] Improve language support and ensure complete translations.
-* [ ] Polish the user icon display and related aesthetic/functional elements.
-* [x] Add more user-configurable settings (e.g. pinning behavior, menu size, icon size).
+## FAQs
 
----
+**Is this an official StartAllBack port?**  
+No. It's an independent KDE launcher inspired by the classic Windows menu.
 
-## 🔗 Repository
+**Why aren't files appearing in search?**  
+Enable Baloo indexing or install the separate `quicksearch` runner. Application search works without either.
 
-GitHub: [https://github.com/walterdemacedorodrigues/Windows7StartMenu4KDE](https://github.com/walterdemacedorodrigues/Windows7StartMenu4KDE)
+**How do I get Windows-style icons like the demo?**  
+The optional glyphs use **Segoe Fluent Icons** or **Segoe MDL2 Assets**, not the Segoe UI text font. Native theme icons work without them.
 
----
+1. Find **Segoe Fluent Icons** on Microsoft's [Design resources](https://learn.microsoft.com/en-us/windows/apps/design/downloads/#fonts) page. Review the download's license first: Microsoft describes it as a design/development resource, not unrestricted permission for Linux desktop use. A Windows license alone does not grant permission to copy Windows fonts to another OS.
+2. If your license permits your intended use, download and extract the font to a permanent local folder, such as `~/.local/share/StartBackPlasma/fonts/`.
+3. Open the widget's settings, go to **Appearance**, enable **Use local Windows icon font**, and use the folder button beside **Icon font** to select the extracted `.ttf` or `.otf` file. Apply the settings. System-wide font installation is unnecessary.
 
-## 📄 License
+This changes menu glyphs, not application icons, the panel button image, or your Plasma theme; those also affect the demo's appearance.
 
-This project is licensed under the AGPL-3.0-or-later, the same licence as the bundled [`LICENSE`](LICENSE) file.
-
----
-
-## 📣 Shout-out: SevenStart by WackyIdeas
-
-A special acknowledgment to the **SevenStart** project by WackyIdeas:
-[https://gitgud.io/wackyideas/aerothemeplasma/-/tree/master/plasma/plasmoids/io.gitgud.wackyideas.SevenStart](https://gitgud.io/wackyideas/aerothemeplasma/-/tree/master/plasma/plasmoids/io.gitgud.wackyideas.SevenStart)
-
-If you're looking to a more lookalike of Windows 7 this project haves the full IDE of 7, not only the StartMenu. It's quite impressive.
+**What is this based on?**  
+[Windows7StartMenu4KDE](https://github.com/walterdemacedorodrigues/Windows7StartMenu4KDE) by Walter Rodrigues and [DeepinMenu ClassicKDE](https://store.kde.org/p/2180887), with inspiration from [SevenStart](https://gitgud.io/wackyideas/aerothemeplasma/-/tree/master/plasma/plasmoids/io.gitgud.wackyideas.SevenStart). Licensed under [AGPL-3.0-or-later](LICENSE).

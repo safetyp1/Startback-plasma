@@ -7,9 +7,10 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
+import ".." as UI
 
 /**
- * Search bar component for the Windows 7 Start Menu
+ * Search bar component for StartBack Plasma
  * Provides text input for searching applications and files
  */
 Rectangle {
@@ -17,9 +18,10 @@ Rectangle {
 
     // Layout properties
     Layout.fillWidth: true
-    Layout.preferredHeight: Kirigami.Units.gridUnit * 2.5
-    Layout.minimumHeight: Kirigami.Units.gridUnit * 2.5
-    Layout.maximumHeight: Kirigami.Units.gridUnit * 2.5
+    implicitHeight: searchField.height + Kirigami.Units.smallSpacing * 2
+    Layout.preferredHeight: implicitHeight
+    Layout.minimumHeight: implicitHeight
+    Layout.maximumHeight: implicitHeight
 
     color: "transparent"
 
@@ -33,6 +35,8 @@ Rectangle {
     signal searchTextChanged(string text)
     signal escapePressed()
     signal navigateToResults()
+    signal activateResult()
+    signal keyNavUp()
     signal keyNavDown()
     signal contextMenuRequested(real x, real y)
 
@@ -63,17 +67,50 @@ Rectangle {
     // Search field
     PlasmaComponents3.TextField {
         id: searchField
+        objectName: "searchInput"
 
-        width: parent.width * 0.6 * 0.9
+        width: Math.max(0, parent.width - Kirigami.Units.smallSpacing * 4)
         height: Kirigami.Units.gridUnit * 1.8
 
         anchors {
             left: parent.left
-            leftMargin: parent.width * 0.6 * 0.05
+            leftMargin: Kirigami.Units.smallSpacing * 2
             verticalCenter: parent.verticalCenter
         }
 
-        placeholderText: "🔍 " + i18n("Type here to search…")
+        placeholderText: i18n("Search programs and files")
+        leftPadding: Kirigami.Units.iconSizes.smallMedium + Kirigami.Units.smallSpacing * 4
+        rightPadding: Kirigami.Units.smallSpacing * 2
+        color: Kirigami.Theme.textColor
+        placeholderTextColor: Qt.rgba(color.r, color.g, color.b, 0.55)
+
+        background: Rectangle {
+            radius: 1
+            color: Qt.rgba(0, 0, 0, 0.32)
+            border.width: 1
+            border.color: searchField.activeFocus ? Kirigami.Theme.highlightColor
+                                                 : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.22)
+        }
+
+        UI.ReferenceIcon {
+            anchors.left: parent.left
+            anchors.leftMargin: Kirigami.Units.smallSpacing * 2
+            anchors.verticalCenter: parent.verticalCenter
+            width: Kirigami.Units.iconSizes.smallMedium
+            height: width
+            iconName: "edit-find"
+            color: Kirigami.Theme.textColor
+            opacity: 0.6
+        }
+
+        Rectangle {
+            x: Kirigami.Units.iconSizes.smallMedium + Kirigami.Units.smallSpacing * 3
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: parent.height * 0.6
+            color: Kirigami.Theme.textColor
+            opacity: 0.2
+        }
 
         onTextChanged: {
             searchBar.isSearching = (text !== "");
@@ -106,13 +143,12 @@ Rectangle {
                 } else {
                     searchBar.escapePressed();
                 }
+            } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && searchBar.isSearching) {
+                event.accepted = true;
+                searchBar.activateResult();
             } else if (event.key === Qt.Key_Up) {
                 event.accepted = true;
-                const recents = searchBar.menuContentRef ? searchBar.menuContentRef.recentsGrid : null;
-                if (recents && recents.visible && recents.count > 0) {
-                    recents.forceActiveFocus();
-                    recents.currentIndex = recents.count - 1;
-                }
+                searchBar.keyNavUp();
             } else if (event.key === Qt.Key_Down) {
                 event.accepted = true;
                 searchBar.keyNavDown();

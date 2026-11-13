@@ -22,6 +22,10 @@ PlasmaComponents.ScrollView {
 
     width: parent.width
     implicitHeight: itemColumn.implicitHeight
+    clip: true
+
+    PlasmaComponents.ScrollBar.horizontal.policy: PlasmaComponents.ScrollBar.AlwaysOff
+    PlasmaComponents.ScrollBar.vertical.policy: PlasmaComponents.ScrollBar.AsNeeded
 
     signal keyNavLeft(int subGridIndex)
     signal keyNavRight(int subGridIndex)
@@ -32,18 +36,60 @@ PlasmaComponents.ScrollView {
     // Ordered list of { title, model }: the caller decides which section comes
     // first, instead of inheriting whatever order the runners answered in.
     property var sections: []
+    onSectionsChanged: Qt.callLater(() => {
+        flickable.cancelFlick();
+        flickable.contentY = 0;
+        selectFirstResult();
+    })
     property alias count: repeater.count
     property alias flickableItem: flickable
 
     property int cellWidth
     property int cellHeight
+    property int iconSize: Kirigami.Units.iconSizes.medium
 
-    // CORREÇÃO: Adicionar dummyHeading para referência
-    Kirigami.Heading {
-        id: dummyHeading
-        visible: false
-        level: 4
-        text: "Dummy"
+    function selectFirstResult() {
+        let selected = false;
+        for (let sectionIndex = 0; sectionIndex < repeater.count; ++sectionIndex) {
+            const section = repeater.itemAt(sectionIndex);
+            if (!section) continue;
+            const grid = section.itemGrid;
+            grid.currentIndex = !selected && grid.count > 0 ? 0 : -1;
+            if (grid.count > 0) selected = true;
+        }
+    }
+
+    function moveSelection(step) {
+        let selectedIndex = -1;
+        let total = 0;
+        for (let sectionIndex = 0; sectionIndex < repeater.count; ++sectionIndex) {
+            const grid = subGridAt(sectionIndex);
+            if (grid.currentIndex >= 0) selectedIndex = total + grid.currentIndex;
+            total += grid.count;
+        }
+        if (total === 0) return false;
+
+        const nextIndex = selectedIndex < 0 ? (step < 0 ? total - 1 : 0)
+                                           : Math.max(0, Math.min(total - 1, selectedIndex + step));
+        let offset = 0;
+        for (let sectionIndex = 0; sectionIndex < repeater.count; ++sectionIndex) {
+            const grid = subGridAt(sectionIndex);
+            const localIndex = nextIndex - offset;
+            grid.currentIndex = localIndex >= 0 && localIndex < grid.count ? localIndex : -1;
+            offset += grid.count;
+        }
+        return true;
+    }
+
+    function activateCurrentResult() {
+        for (let sectionIndex = 0; sectionIndex < repeater.count; ++sectionIndex) {
+            const grid = subGridAt(sectionIndex);
+            if (grid.currentItem && grid.currentItem.enabled) {
+                grid.currentItem.actionTriggered("", null);
+                return true;
+            }
+        }
+        return false;
     }
 
     function subGridAt(index) {
@@ -85,12 +131,17 @@ PlasmaComponents.ScrollView {
 
     Flickable {
         id: flickable
+        width: itemMultiGrid.availableWidth
+        height: itemMultiGrid.availableHeight
         flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        contentWidth: width
         contentHeight: itemColumn.implicitHeight
+        clip: true
 
         Column {
             id: itemColumn
-            width: itemMultiGrid.width - Kirigami.Units.gridUnit
+            width: flickable.width
 
             Repeater {
                 id: repeater
@@ -99,7 +150,7 @@ PlasmaComponents.ScrollView {
 
                 delegate: Item {
                     width: itemColumn.width
-                    height: gridView.height + gridViewLabel.height + Kirigami.Units.largeSpacing * 2
+                    height: visible ? gridView.height + gridViewLabel.height + Kirigami.Units.largeSpacing * 2 : 0
                     visible: gridView.count > 0
 
                     property Item itemGrid: gridView
@@ -109,7 +160,7 @@ PlasmaComponents.ScrollView {
                         anchors.top: parent.top
                         x: Kirigami.Units.smallSpacing
                         width: parent.width - x
-                        height: dummyHeading.height // CORREÇÃO: Usar dummyHeading
+                        height: implicitHeight
 
                         elide: Text.ElideRight
                         wrapMode: Text.NoWrap
@@ -143,29 +194,12 @@ PlasmaComponents.ScrollView {
                         }
 
                         width: parent.width
-                        // CORREÇÃO: Calcular altura com segurança
-                        height: {
-                            var columns = 1; // Default fallback
-                            if (typeof Plasmoid !== "undefined" &&
-                                Plasmoid.configuration &&
-                                Plasmoid.configuration.numberColumns) {
-                                columns = Plasmoid.configuration.numberColumns;
-                            } else {
-                                // Calcular baseado na largura se não tiver configuração
-                                columns = Math.max(1, Math.floor(width / itemMultiGrid.cellWidth));
-                            }
-                            return Math.ceil(count / columns) * itemMultiGrid.cellHeight;
-                        }
+                        height: Math.ceil(count / Math.max(1, Math.floor(width / cellWidth))) * cellHeight
 
-                        cellWidth: itemMultiGrid.cellWidth
+                        cellWidth: Math.max(1, Math.min(width, itemMultiGrid.cellWidth))
                         cellHeight: itemMultiGrid.cellHeight
-                        // CORREÇÃO: Verificar se root existe antes de acessar iconSize
-                        iconSize: {
-                            if (typeof root !== "undefined" && root.iconSize) {
-                                return root.iconSize;
-                            }
-                            return Kirigami.Units.iconSizes.huge; // Fallback
-                        }
+                        iconSize: itemMultiGrid.iconSize
+                        dragEnabled: false
 
                         verticalScrollBarPolicy: PlasmaComponents.ScrollBar.AlwaysOff
 
@@ -178,6 +212,7 @@ PlasmaComponents.ScrollView {
                         }
 
                         onCountChanged: {
+                            Qt.callLater(itemMultiGrid.selectFirstResult);
                             if (itemMultiGrid.grabFocus && index == 0 && count > 0) {
                                 currentIndex = 0;
                                 focus = true;
@@ -242,7 +277,7 @@ PlasmaComponents.ScrollView {
                         anchors.fill: gridView
                         z: 1
 
-                        destination: findWheelArea(itemMultiGrid)
+                        destination: flickable
                     }
                 }
             }

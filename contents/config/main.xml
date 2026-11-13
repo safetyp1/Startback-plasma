@@ -83,6 +83,10 @@
       <label>JSON object naming which side panel entries are shown.</label>
       <default>{"Home directory":1,"Documents":1,"Pictures":1,"Music":1,"Videos":1,"Downloads":1,"Recent Items":1,"Computer":1,"Network":1,"Control Panel":1,"Default Programs":1,"Run":1}</default>
     </entry>
+    <entry name="referenceSidebar" type="Bool">
+      <label>Use the compact reference sidebar while retaining the custom entry selection.</label>
+      <default>true</default>
+    </entry>
     <entry name="submenuHoverDelay" type="Int">
       <label>Milliseconds a side panel entry must be hovered before its flyout opens.</label>
       <default>400</default>
@@ -97,6 +101,20 @@
     <entry name="menuFrameUseThemeColor" type="Bool">
       <label>Tint the whole menu with the theme background colour.</label>
       <default>true</default>
+    </entry>
+    <entry name="menuBackgroundOpacity" type="Int">
+      <label>Opacity of the complete menu background, without fading text or icons.</label>
+      <default>85</default>
+      <min>0</min>
+      <max>100</max>
+    </entry>
+    <entry name="useWindowsIconFont" type="Bool">
+      <label>Use an optional user-supplied Segoe icon font, with native icon fallbacks.</label>
+      <default>true</default>
+    </entry>
+    <entry name="windowsIconFont" type="String">
+      <label>Local font path or file URL. Empty searches user data for Windows7StartMenu4KDE/fonts/SegoeIcons.ttf.</label>
+      <default></default>
     </entry>
     <entry name="menuFrameColor" type="Color">
       <default>#31363b</default>

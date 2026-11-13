@@ -30,7 +30,7 @@ Item {
     }
 
     function open(x, y) {
-        if (!actionList) {
+        if (!actionList || !kicker.expanded) {
             return;
         }
 
@@ -38,6 +38,19 @@ Item {
             menu.open(x, y);
         } else {
             menu.open();
+        }
+    }
+
+    function close() {
+        if (menu) menu.close();
+    }
+
+    onVisibleChanged: if (!visible) close()
+
+    Connections {
+        target: kicker
+        function onExpandedChanged() {
+            if (!kicker.expanded) root.close();
         }
     }
 

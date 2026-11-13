@@ -46,15 +46,6 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // Only present while a category is open, as the way back out of it.
-        Breadcrumb {
-            id: breadcrumb
-            Layout.fillWidth: true
-            text: treeView.expandedLabel
-            visible: appsView.hierarchical && text !== ""
-            onClicked: appsView.reset()
-        }
-
         AppsListView {
             id: treeView
             Layout.fillWidth: true

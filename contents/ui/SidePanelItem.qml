@@ -11,6 +11,8 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
+import org.kde.kitemmodels as KItemModels
+import "parts" as Parts
 
 // One entry of the right hand column. Geometry follows the original 33 pixel
 // row so the column keeps its Windows 7 proportions. Entries carrying a
@@ -28,6 +30,7 @@ Item {
     property bool executeProgram: false
     property var menuModel: null
     property var executable: null
+    property var configuration: Plasmoid.configuration
 
     signal navigateLeft()
     signal navigateBelow()
@@ -36,9 +39,10 @@ Item {
 
     readonly property bool hasFlyout: menuModel !== null
     readonly property bool flyoutOpen: flyout.opened
-    readonly property string resolvedIcon: Plasmoid.configuration.useWindowsIcons ? itemIcon : itemIconFallback
+    property bool flyoutOpenedWithKeyboard: false
+    readonly property string resolvedIcon: configuration.useWindowsIcons ? itemIcon : itemIconFallback
 
-    implicitHeight: Math.round(Kirigami.Units.gridUnit * 1.85)
+    implicitHeight: 44
     activeFocusOnTab: true
 
     // Walks the sibling list so that adding, hiding or reordering entries never
@@ -65,9 +69,25 @@ Item {
         }
     }
 
-    function openFlyout() {
-        if (!hasFlyout) return;
-        flyout.popup(sidePanelItem, sidePanelItem.width, 0);
+    function openFlyout(withKeyboard = false) {
+        if (!hasFlyout || !visible || !kicker.expanded) return;
+        flyoutOpenedWithKeyboard = withKeyboard;
+        flyoutTimer.stop();
+        flyout.popup(flyoutAnchor, 0, flyoutAnchor.height);
+    }
+
+    function closeFlyout() {
+        flyoutTimer.stop();
+        flyout.close();
+    }
+
+    onVisibleChanged: if (!visible) closeFlyout()
+
+    Connections {
+        target: kicker
+        function onExpandedChanged() {
+            if (!kicker.expanded) sidePanelItem.closeFlyout();
+        }
     }
 
     Keys.onPressed: event => {
@@ -76,12 +96,12 @@ Item {
         case Qt.Key_Enter:
         case Qt.Key_Space:
             event.accepted = true;
-            if (hasFlyout) openFlyout(); else activate();
+            if (hasFlyout) openFlyout(true); else activate();
             break;
         case Qt.Key_Right:
             if (hasFlyout) {
                 event.accepted = true;
-                openFlyout();
+                openFlyout(true);
             }
             break;
         case Qt.Key_Left:
@@ -103,24 +123,31 @@ Item {
         }
     }
 
+    HoverHandler {
+        id: rowHover
+        blocking: false
+    }
+
     PlasmaExtras.Highlight {
         anchors.fill: parent
-        hovered: mouseArea.containsMouse || sidePanelItem.activeFocus || flyout.opened
+        hovered: rowHover.hovered || sidePanelItem.activeFocus || flyout.opened
         pressed: mouseArea.containsPress
         visible: hovered || pressed
     }
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Kirigami.Units.smallSpacing * 2
+        anchors.leftMargin: Kirigami.Units.smallSpacing * 4
         anchors.rightMargin: Kirigami.Units.smallSpacing * 2
-        spacing: Kirigami.Units.smallSpacing
+        spacing: Kirigami.Units.smallSpacing * 2
 
-        Kirigami.Icon {
-            source: sidePanelItem.resolvedIcon
+        ReferenceIcon {
+            objectName: "sidePanelIcon"
+            iconName: sidePanelItem.resolvedIcon
+            glyphName: sidePanelItem.itemIcon
             fallback: sidePanelItem.itemIconFallback
-            Layout.preferredWidth: Kirigami.Units.iconSizes.small
-            Layout.preferredHeight: Kirigami.Units.iconSizes.small
+            Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
+            Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
         }
 
         PlasmaComponents.Label {
@@ -132,11 +159,11 @@ Item {
         }
 
         // Matches the 6x10 group expander of the original side panel.
-        Kirigami.Icon {
-            source: "arrow-right"
+        ReferenceIcon {
+            iconName: "go-next"
             visible: sidePanelItem.hasFlyout
-            Layout.preferredWidth: Math.round(Kirigami.Units.iconSizes.small * 0.4)
-            Layout.preferredHeight: Math.round(Kirigami.Units.iconSizes.small * 0.66)
+            Layout.preferredWidth: Kirigami.Units.iconSizes.small
+            Layout.preferredHeight: Kirigami.Units.iconSizes.small
             opacity: 0.7
         }
     }
@@ -157,7 +184,6 @@ Item {
         acceptedButtons: Qt.LeftButton
 
         onEntered: {
-            sidePanelItem.forceActiveFocus();
             if (sidePanelItem.hasFlyout) flyoutTimer.restart();
         }
         onExited: flyoutTimer.stop()
@@ -169,34 +195,59 @@ Item {
 
     Timer {
         id: flyoutTimer
-        interval: Plasmoid.configuration.submenuHoverDelay
+        interval: sidePanelItem.configuration.submenuHoverDelay
         onTriggered: sidePanelItem.openFlyout()
     }
 
     // A QtQuick menu rather than the QMenu wrapper, so the left arrow can walk
     // back out of the flyout instead of forcing the user to press Escape.
-    PlasmaComponents.Menu {
-        id: flyout
+    Item {
+        id: flyoutAnchor
+        x: sidePanelItem.width
+        y: -1
+        width: 1
+        height: 1
+    }
 
-        onClosed: if (sidePanelItem.visible) sidePanelItem.forceActiveFocus()
+    Parts.HoverDismissMenu {
+        id: flyout
+        objectName: "sidebarFlyout"
+        anchorItem: sidePanelItem
+        anchorHovered: rowHover.hovered
+        dismissOnMenuExit: true
+
+        onClosed: {
+            if (sidePanelItem.flyoutOpenedWithKeyboard && sidePanelItem.visible && kicker.expanded) {
+                sidePanelItem.forceActiveFocus();
+            } else {
+                sidePanelItem.focus = false;
+            }
+        }
 
         // Second route out, in case the popup is a window of its own and the
         // entry never sees the key. Only live while this flyout is open.
         Shortcut {
-            sequence: "Left"
+            sequences: ["Left", "Escape"]
             enabled: flyout.opened
             context: Qt.ApplicationShortcut
-            onActivated: flyout.close()
+            onActivated: {
+                sidePanelItem.flyoutOpenedWithKeyboard = true;
+                flyout.close();
+            }
         }
 
         Instantiator {
-            model: sidePanelItem.menuModel
+            model: KItemModels.KSortFilterProxyModel {
+                sourceModel: sidePanelItem.menuModel
+                filterRowCallback: {
+                    const limit = sidePanelItem.configuration.numberRecentFiles;
+                    return sourceRow => sourceRow < limit;
+                }
+            }
             delegate: PlasmaComponents.MenuItem {
                 required property int index
                 required property var model
 
-                visible: index < Plasmoid.configuration.numberRecentFiles
-                height: visible ? implicitHeight : 0
                 text: model.display
                 // The decoration role is a name for some models and a QIcon for others.
                 icon.name: typeof model.decoration === "string" ? model.decoration : ""

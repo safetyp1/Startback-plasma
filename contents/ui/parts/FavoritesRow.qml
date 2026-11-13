@@ -9,18 +9,16 @@ import ".."
 import "../functions" as Functions
 
 /**
- * Favorites grid component for the Windows 7 Start Menu
+ * Favorites grid component for StartBack Plasma
  * Displays user's favorite applications with recent files support
  */
 FavoritesGridView {
     id: favoritesGrid
 
     // Properties
-    property bool dragEnabled: true
-    property bool dropEnabled: true
+    dragEnabled: true
+    dropEnabled: true
     // cellWidth and cellHeight are aliases in FavoritesGridView - don't override them
-    property int iconSize: 32
-
     // Signals (keyNavDown already defined in FavoritesGridView)
     signal menuClosed()
 
@@ -28,6 +26,7 @@ FavoritesGridView {
 
     // External model reference (set by parent)
     property var externalFavoritesModel: null
+    dropFavoritesModel: externalFavoritesModel
 
     // Local model with recent files data
     ListModel {
@@ -154,25 +153,21 @@ FavoritesGridView {
     }
 
     // Show recent files menu for a favorite item
-    readonly property bool jumpOpen: jumpList.opened
+    property var recentFilesPane: null
+    readonly property bool jumpOpen: recentFilesPane !== null && recentFilesPane.opened && recentFilesPane.owner === favoritesGrid
     property int jumpIndex: -1
-
-    JumpListFlyout {
-        id: jumpList
-        onItemTriggered: favoritesGrid.menuClosed()
-        onActionRequested: (actionId, actionArgument) => {
-            if (favoritesGrid.jumpIndex >= 0) favoritesGrid.runAction(favoritesGrid.jumpIndex, actionId, actionArgument);
-        }
-    }
 
     function showRecentFilesMenu(index, visualParent) {
         const item = favoritesWithRecentFiles.get(index);
-        if (!item || !item.launcherUrl) return;
+        if (!item || !item.launcherUrl || !recentFilesPane) return;
+        if (jumpOpen && jumpIndex === index) {
+            recentFilesPane.focusFirst();
+            return;
+        }
         jumpIndex = index;
-        if (jumpList.opened) jumpList.close();
         const result = getRecentFilesHelper.getRecentFilesActions(item.launcherUrl, favoritesGrid);
         if (!result || result.count <= 0) return;
-        jumpList.openFor(visualParent, result.actions, result.title);
+        recentFilesPane.openFor(visualParent, result.actions, result.title, favoritesGrid, item.display, item.decoration);
     }
 
     // Grid configuration
@@ -227,9 +222,9 @@ FavoritesGridView {
     Keys.onPressed: (event) => {
 
         // Close submenu with Left or Escape
-        if ((event.key === Qt.Key_Left || event.key === Qt.Key_Escape) && jumpList.opened) {
+        if ((event.key === Qt.Key_Left || event.key === Qt.Key_Escape) && jumpOpen) {
             event.accepted = true;
-            jumpList.close();
+            recentFilesPane.close();
             favoritesGrid.forceActiveFocus();
             return;
         }

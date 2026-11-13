@@ -10,7 +10,7 @@ import org.kde.kirigami as Kirigami
 import ".."
 
 /**
- * Floating user avatar component for the Windows 7 Start Menu
+ * Floating user avatar component for StartBack Plasma
  * Displays user profile picture with hover effects and click to open settings
  */
 Rectangle {

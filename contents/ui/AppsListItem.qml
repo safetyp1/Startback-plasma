@@ -66,8 +66,10 @@ Item {
     }
 
     PlasmaExtras.Highlight {
+        objectName: "applicationRowHighlight"
         anchors.fill: parent
-        hovered: mouseArea.containsMouse || listItem.isCurrent
+        hovered: mouseArea.containsMouse || (listItem.isCurrent && listItem.listView
+            && listItem.listView.activeFocus && listItem.listView.keyboardNavigation)
         pressed: mouseArea.containsPress
         visible: hovered || pressed
     }

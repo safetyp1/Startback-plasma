@@ -18,6 +18,7 @@ KCM.SimpleKCM {
     id: configSidepanel
 
     property alias cfg_sidePanelVisibility: visibilityField.text
+    property alias cfg_referenceSidebar: referenceSidebar.checked
 
     TextField {
         id: visibilityField
@@ -44,7 +45,9 @@ KCM.SimpleKCM {
         property var entry: null
         text: entry ? entry.itemText : ""
         icon.name: entry ? (Plasmoid.configuration.useWindowsIcons ? entry.itemIcon : entry.itemIconFallback) : ""
-        checked: entry ? visibility.isShown(entry.name) : false
+        enabled: !referenceSidebar.checked
+        checked: entry ? (referenceSidebar.checked ? typeof sidePanelModels.referenceVisibility[entry.name] !== "undefined"
+                              : visibility.isShown(entry.name)) : false
         onToggled: visibility.setShown(entry.name, checked)
     }
 
@@ -53,6 +56,11 @@ KCM.SimpleKCM {
         anchors.right: parent.right
         anchors.margins: Kirigami.Units.largeSpacing
         spacing: Kirigami.Units.smallSpacing
+
+        CheckBox {
+            id: referenceSidebar
+            text: i18n("Reference sidebar")
+        }
 
         Kirigami.Heading { level: 4; text: i18n("Places") }
         Repeater {

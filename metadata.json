@@ -3,8 +3,8 @@
     "KPlugin": {
         "Id": "Windows7StartMenu4KDE",
         "Version": "1.3.0",
-        "Name": "Windows7StartMenu4KDE",
-        "Description": "Windows 7 style application launcher",
+        "Name": "StartBack Plasma",
+        "Description": "Classic two-column application launcher inspired by Windows 7 and StartAllBack",
         "Category": "Application Launchers",
         "Icon": "start-here-kde",
         "License": "AGPL-3.0-or-later",
