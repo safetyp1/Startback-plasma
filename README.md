@@ -8,8 +8,8 @@ A standalone fork of Windows7StartMenu4KDE, inspired by Windows 7 and StartAllBa
 
 ## Key Features
 
-- Classic two-column layout with automatic height and a panel-attached popup.
-- Persistent Favorites with drag-to-pin and a separate recent/frequent apps list.
+- Classic two-column layout with automatic height, sidebar space beside All Programs, and a panel-attached popup.
+- Persistent Favorites with drag-to-pin and a separate recent/frequent apps list that starts at the top when Favorites is empty.
 - Categorized All Programs and keyboard-friendly application and file search.
 - Inline recent documents and desktop actions for individual applications.
 - Customizable sidebar shortcuts, native flyouts, and power/session controls.
@@ -18,7 +18,7 @@ A standalone fork of Windows7StartMenu4KDE, inspired by Windows 7 and StartAllBa
 
 ## Installation
 
-Requires Plasma 6.8 or newer with Qt 6.8 or newer. Tested on Plasma 6.8.2 / Qt 6.12. Run from the repository root:
+Requires Plasma 6.6 or newer with Qt 6.8 or newer. Tested on Plasma 6.8.2 / Qt 6.12; Plasma 6.6 and 6.7 still need runtime testing. Run from the repository root:
 
 ```sh
 kpackagetool6 --type Plasma/Applet --install .
@@ -29,6 +29,15 @@ Then add **StartBack Plasma** from Plasma's widget picker.
 The fork uses the independent ID `com.github.safetyp1.startbackplasma`. It installs alongside the original widget; existing panel instances and settings are not migrated automatically.
 
 ## FAQs
+
+**Why does version 1.3.1 appear as an Unsupported Widget?**
+It incorrectly declares a Plasma 6.8 API minimum. Plasma's widget picker rejects API minimums above 6.6 even on Plasma 6.8. Version 1.3.2 corrects the declaration to 6.6. Upgrade the installed widget from the repository root:
+
+```sh
+kpackagetool6 --type Plasma/Applet --upgrade .
+```
+
+Reopen the widget picker after upgrading; log out and back in if it still shows the cached metadata.
 
 **Is this an official StartAllBack port?**  
 No. It's an independent KDE launcher inspired by the classic Windows menu.

@@ -354,6 +354,9 @@ Item {
         function test_menuHeightFitsLargerColumn_data() {
             return [
                 { tag: "sidebar-minimum", favorites: 0, recent: 0 },
+                { tag: "recents-only", favorites: 0, recent: 12 },
+                { tag: "recents-only-with-all-programs", favorites: 0, recent: 10, sidebarExtraHeight: 36 },
+                { tag: "one-favorite-with-all-programs", favorites: 1, recent: 10, sidebarExtraHeight: 36 },
                 { tag: "ten-recents-and-favorites", favorites: 2, recent: 10 },
                 { tag: "many-favorites", favorites: 15, recent: 1 }
             ];
@@ -371,35 +374,98 @@ Item {
                 usage.append({ display: "Recent app " + index, decoration: "application-x-executable",
                                favoriteId: "recent" + index + ".desktop", url: "applications:recent" + index + ".desktop" });
             }
-            const menu = createTemporaryObject(menuContentComponent, harness, { configuration: config });
+            const sidebarExtraHeight = data.sidebarExtraHeight || 0;
+            const menu = createTemporaryObject(menuContentComponent, harness, {
+                configuration: config, sidebarExtraHeight: sidebarExtraHeight
+            });
             verify(menu);
             menu.favoritesGrid.externalFavoritesModel = backend;
             menu.recentsGrid.usageModel = usage;
             tryCompare(menu.favoritesGrid, "count", data.favorites);
             tryCompare(menu.recentsGrid, "count", data.recent);
             const separator = data.favorites > 0 && data.recent > 0 ? Kirigami.Units.smallSpacing * 2 + 1 : 0;
-            const listHeight = Math.max(1, data.favorites) * 44 + data.recent * 44 + separator;
+            const favoritesHeight = (data.favorites > 0 || data.recent === 0) ? Math.max(1, data.favorites) * 44 : 0;
+            const listHeight = favoritesHeight + data.recent * 44 + separator;
             const sidebarHeight = 10 * 44 + Kirigami.Units.smallSpacing * 6;
             compare(menu.sidebarContentHeight, sidebarHeight);
-            compare(menu.implicitHeight, Math.max(listHeight, sidebarHeight));
-            tryCompare(menu.favoritesGrid, "height", Math.max(1, data.favorites) * 44);
+            const expectedHeight = Math.max(listHeight, sidebarHeight - sidebarExtraHeight);
+            tryCompare(menu, "implicitHeight", expectedHeight);
+            tryCompare(menu.sidebar, "height", expectedHeight + sidebarExtraHeight);
+            tryCompare(menu.favoritesGrid, "height", favoritesHeight);
             tryCompare(menu.recentsGrid, "height", data.recent * 44);
+            if (data.recent > 0) tryCompare(menu.recentsGrid, "y", favoritesHeight + separator);
+            if (sidebarExtraHeight > 0) {
+                tryCompare(menu.favoritesComponent, "height", menu.height);
+                const pane = findChild(menu, "applicationRecentsPane");
+                verify(pane);
+                tryCompare(pane, "height", menu.sidebar.height);
+            }
             menu.height = 60;
-            compare(menu.implicitHeight, Math.max(listHeight, sidebarHeight));
+            compare(menu.implicitHeight, expectedHeight);
             menu.searching = true;
-            compare(menu.implicitHeight, Math.max(listHeight, sidebarHeight));
+            compare(menu.implicitHeight, expectedHeight);
             menu.searching = false;
             menu.showApps = 1;
-            compare(menu.implicitHeight, Math.max(listHeight, sidebarHeight));
+            compare(menu.implicitHeight, expectedHeight);
             menu.showApps = 0;
             backend.clear();
             config.numberRecentApps = 2;
             tryCompare(menu.favoritesGrid, "count", 0);
             tryCompare(menu.recentsGrid, "count", 2);
-            tryCompare(menu, "implicitHeight", sidebarHeight);
+            tryCompare(menu.favoritesGrid, "height", 0);
+            tryCompare(menu.recentsGrid, "y", 0);
+            tryCompare(menu, "implicitHeight", sidebarHeight - sidebarExtraHeight);
             config.referenceSidebar = false;
             tryCompare(menu, "sidebarContentHeight", Kirigami.Units.smallSpacing * 2);
-            tryCompare(menu, "implicitHeight", 44 * 3);
+            tryCompare(menu, "implicitHeight", 44 * 2);
+        }
+
+        function test_emptyFavoritesDropDoesNotReserveTopRow() {
+            const config = createTemporaryObject(menuConfigurationComponent, harness);
+            const backend = createTemporaryObject(persistentFavoritesComponent, harness);
+            const usage = createTemporaryObject(searchModelComponent, harness);
+            verify(config);
+            verify(backend);
+            verify(usage);
+            usage.append({ display: "Dropped app", decoration: "application-x-executable",
+                           favoriteId: "dropped.desktop", url: "applications:dropped.desktop" });
+            const menu = createTemporaryObject(menuContentComponent, harness, { configuration: config });
+            const source = createTemporaryObject(appDragSourceComponent, harness, { x: 500, y: 300 });
+            verify(menu);
+            verify(source);
+            menu.favoritesGrid.externalFavoritesModel = backend;
+            menu.recentsGrid.usageModel = usage;
+            tryCompare(menu.recentsGrid, "count", 1);
+            tryCompare(menu.favoritesGrid, "height", 0);
+            tryCompare(menu.recentsGrid, "y", 0);
+            // This standalone harness has no applet configuration for recent files.
+            for (const grid of [menu.favoritesGrid, menu.recentsGrid]) {
+                const helper = grid.children.find(child => "_cacheReady" in child);
+                verify(helper);
+                helper._reader.connectedSources = [];
+                helper._cacheReady = false;
+            }
+            const dropArea = findChild(menu, "emptyFavoritesDropArea");
+            verify(dropArea);
+            kicker.dragSource = source;
+            try {
+                source.Drag.active = true;
+                source.x = 10;
+                source.y = 10;
+                tryCompare(dropArea, "containsDrag", true);
+                compare(source.Drag.drop(), Qt.CopyAction);
+                compare(backend.count, 1);
+                tryCompare(menu.favoritesGrid, "count", 1);
+                tryCompare(menu.favoritesGrid, "height", 44);
+                tryCompare(menu.recentsGrid, "count", 0);
+                backend.clear();
+                tryCompare(menu.favoritesGrid, "count", 0);
+                tryCompare(menu.recentsGrid, "count", 1);
+                tryCompare(menu.recentsGrid, "y", 0);
+            } finally {
+                source.Drag.cancel();
+                kicker.dragSource = null;
+            }
         }
 
         function test_recentAppsRemainEnabledAndLaunch() {

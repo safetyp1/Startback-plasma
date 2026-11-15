@@ -21,6 +21,7 @@ Item {
     property bool searching: false
     property int cellHeight: 48
     property int iconSize: 32
+    property real sidebarExtraHeight: 0
     property var executable
     property var configuration: Plasmoid.configuration
 
@@ -33,7 +34,9 @@ Item {
     property alias sidebar: sidebar
 
     readonly property bool recentAppsEnabled: configuration.showRecentsView && configuration.numberRecentApps > 0
-    readonly property real applicationListsHeight: Math.max(cellHeight, favoritesGrid.contentHeight)
+    readonly property real favoritesContentHeight: Math.max(favoritesGrid.contentHeight,
+        favoritesGrid.model.count === 0 && recentAppsEnabled && recentsGrid.count > 0 ? 0 : cellHeight)
+    readonly property real applicationListsHeight: favoritesContentHeight
         + (recentAppsEnabled ? recentsGrid.contentHeight : 0)
         + (favoritesGrid.count > 0 && recentAppsEnabled && recentsGrid.count > 0 ? Kirigami.Units.smallSpacing * 2 + 1 : 0)
     readonly property real sidebarContentHeight: {
@@ -44,7 +47,7 @@ Item {
             + (groups[1] > 0 && groups[2] > 0 ? separatorTwo.implicitHeight : 0)
             + Kirigami.Units.smallSpacing * 2;
     }
-    implicitHeight: Math.max(applicationListsHeight, sidebarContentHeight)
+    implicitHeight: Math.max(applicationListsHeight, sidebarContentHeight - sidebarExtraHeight)
 
     onSearchingChanged: if (searching) applicationRecents.close(false)
     onShowAppsChanged: applicationRecents.close(false)
@@ -175,7 +178,7 @@ Item {
                         const available = mainArea.height;
                         const reserved = (recentsGrid.visible && recentsGrid.count > 0) ? contentRoot.cellHeight : 0;
                         const rows = Math.floor((available - reserved - columnSeparator.height) / contentRoot.cellHeight);
-                        return Math.max(0, Math.min(Math.max(contentHeight, contentRoot.cellHeight), rows * contentRoot.cellHeight));
+                        return Math.max(0, Math.min(contentRoot.favoritesContentHeight, rows * contentRoot.cellHeight));
                     }
                     dragEnabled: true
                     dropEnabled: true
@@ -244,6 +247,19 @@ Item {
                     onMenuClosed: contentRoot.closeRequested()
                 }
             }
+
+            // Keep first-favorite drops available without reserving an empty row.
+            DropArea {
+                objectName: "emptyFavoritesDropArea"
+                width: parent.width
+                height: Math.min(contentRoot.cellHeight, parent.height)
+                enabled: favoritesGrid.dropEnabled && favoritesGrid.count === 0 && recentsGrid.visible && recentsGrid.count > 0
+                onEntered: event => { event.accepted = enabled; }
+                onDropped: event => {
+                    if (favoritesGrid.addDroppedFavorite(kicker.dragSource, 0)) event.acceptProposedAction();
+                    else event.accepted = false;
+                }
+            }
         }
 
         BlankAreaMenu {
@@ -308,6 +324,7 @@ Item {
                 right: parent.right
                 rightMargin: Kirigami.Units.smallSpacing
                 bottom: parent.bottom
+                bottomMargin: -contentRoot.sidebarExtraHeight
             }
 
             signal keyNavUp()
@@ -451,6 +468,7 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: Kirigami.Units.smallSpacing
             anchors.bottom: parent.bottom
+            anchors.bottomMargin: -contentRoot.sidebarExtraHeight
             onItemTriggered: contentRoot.closeRequested()
         }
     }

@@ -271,6 +271,7 @@ PlasmoidItem {
                     searching: root.searching
                     cellHeight: 44
                     iconSize: 36
+                    sidebarExtraHeight: allAppsRow.implicitHeight
                     executable: kicker.executable
 
                     onSearchTextChanged: text => {
